@@ -8,7 +8,7 @@ program
   .name("agentmesh")
   .description("AgentMesh CLI — manage agents, send messages, create tasks")
   .version("0.1.0")
-  .option("--hub <url>", "Hub URL", process.env.AGENTMESH_HUB_URL ?? "http://localhost:3000")
+  .option("--hub <url>", "Hub URL", process.env.AGENTMESH_HUB_URL ?? "http://localhost:5555")
   .option("--key <apiKey>", "Owner API key", process.env.AGENTMESH_API_KEY ?? "");
 
 function getClient(opts: { hub: string; key: string }): AgentMeshClient {

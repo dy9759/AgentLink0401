@@ -62,7 +62,7 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
 
 // CLI entrypoint: stdio transport
 async function main() {
-  const hubUrl = process.env.AGENTMESH_HUB_URL ?? "http://localhost:3000";
+  const hubUrl = process.env.AGENTMESH_HUB_URL ?? "http://localhost:5555";
   const apiKey = process.env.AGENTMESH_API_KEY ?? "";
 
   if (!apiKey) {

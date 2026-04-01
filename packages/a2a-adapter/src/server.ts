@@ -134,7 +134,7 @@ function generateId(): string {
 
 // CLI entrypoint
 async function main() {
-  const hubUrl = process.env.AGENTMESH_HUB_URL ?? "http://localhost:3000";
+  const hubUrl = process.env.AGENTMESH_HUB_URL ?? "http://localhost:5555";
   const apiKey = process.env.AGENTMESH_API_KEY ?? "";
   const agentName = process.env.AGENT_NAME ?? "a2a-agent";
   const capabilities = process.env.AGENT_CAPABILITIES?.split(",").filter(Boolean) ?? [];
