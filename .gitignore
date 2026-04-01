@@ -7,3 +7,6 @@ dist/
 *.db
 *.sqlite
 references/
+*.db-shm
+*.db-wal
+.DS_Store
