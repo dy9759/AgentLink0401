@@ -29,4 +29,14 @@ export interface MessageBus {
     channel: string,
     opts?: { afterId?: string; limit?: number },
   ): Promise<Interaction[]>;
+
+  getConversations(
+    agentId: string,
+  ): Promise<Array<{ agentId: string; lastMessage: Interaction; lastMessageAt: string }>>;
+
+  getChatHistory(
+    agentId: string,
+    otherAgentId: string,
+    opts?: { afterId?: string; limit?: number; beforeId?: string },
+  ): Promise<Interaction[]>;
 }

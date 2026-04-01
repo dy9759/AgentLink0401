@@ -1,4 +1,4 @@
-import { eq, and, gt, desc, inArray } from "drizzle-orm";
+import { eq, and, or, gt, desc, inArray, sql } from "drizzle-orm";
 import {
   generateInteractionId,
   type Interaction,
@@ -206,6 +206,97 @@ export class MessageBusService implements MessageBus {
     );
 
     return unique.slice(0, limit).map(rowToInteraction);
+  }
+
+  /**
+   * Get list of agents that this agent has had direct conversations with,
+   * along with the last message and timestamp.
+   */
+  async getConversations(agentId: string): Promise<
+    Array<{
+      agentId: string;
+      lastMessage: Interaction;
+      lastMessageAt: string;
+    }>
+  > {
+    // Get all DMs involving this agent (sent or received)
+    const rows = this.db
+      .select()
+      .from(interactions)
+      .where(
+        and(
+          or(
+            eq(interactions.toAgent, agentId),
+            eq(interactions.fromAgent, agentId),
+          ),
+          // Only DMs (toAgent is not null, channel is null)
+          sql`${interactions.toAgent} IS NOT NULL`,
+          sql`${interactions.channel} IS NULL`,
+        ),
+      )
+      .orderBy(desc(interactions.createdAt))
+      .all();
+
+    // Group by the other agent
+    const convMap = new Map<string, Interaction>();
+    for (const row of rows) {
+      const otherAgent =
+        row.fromAgent === agentId ? row.toAgent! : row.fromAgent;
+      if (!convMap.has(otherAgent)) {
+        convMap.set(otherAgent, rowToInteraction(row));
+      }
+    }
+
+    return Array.from(convMap.entries()).map(([otherAgentId, lastMessage]) => ({
+      agentId: otherAgentId,
+      lastMessage,
+      lastMessageAt: lastMessage.createdAt,
+    }));
+  }
+
+  /**
+   * Get chat history between two agents (bidirectional).
+   */
+  async getChatHistory(
+    agentId: string,
+    otherAgentId: string,
+    opts?: { afterId?: string; limit?: number; beforeId?: string },
+  ): Promise<Interaction[]> {
+    const limit = opts?.limit ?? 50;
+
+    const conditions = [
+      or(
+        and(
+          eq(interactions.fromAgent, agentId),
+          eq(interactions.toAgent, otherAgentId),
+        ),
+        and(
+          eq(interactions.fromAgent, otherAgentId),
+          eq(interactions.toAgent, agentId),
+        ),
+      )!,
+    ];
+
+    if (opts?.afterId) {
+      const cursor = this.db
+        .select({ createdAt: interactions.createdAt })
+        .from(interactions)
+        .where(eq(interactions.id, opts.afterId))
+        .get();
+      if (cursor) {
+        conditions.push(gt(interactions.createdAt, cursor.createdAt));
+      }
+    }
+
+    const rows = this.db
+      .select()
+      .from(interactions)
+      .where(and(...conditions))
+      .orderBy(interactions.createdAt)
+      .limit(limit)
+      .all();
+
+    return rows.map(rowToInteraction);
   }
 
   async getChannelMessages(

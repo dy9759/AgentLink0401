@@ -37,6 +37,35 @@ export function interactionRoutes(
     }
   });
 
+  // Conversation list — agents you've chatted with
+  app.get("/api/conversations", async (request) => {
+    const query = request.query as Record<string, string>;
+    const agentId = query.agentId;
+    if (!agentId) {
+      return { conversations: [] };
+    }
+    const conversations = await messageBus.getConversations(agentId);
+    return { conversations };
+  });
+
+  // Chat history with a specific agent
+  app.get("/api/conversations/:otherAgentId/messages", async (request) => {
+    const params = request.params as Record<string, string>;
+    const query = request.query as Record<string, string>;
+    const agentId = query.agentId;
+    const otherAgentId = params.otherAgentId;
+
+    if (!agentId) {
+      return { messages: [] };
+    }
+
+    const messages = await messageBus.getChatHistory(agentId, otherAgentId, {
+      afterId: query.afterId,
+      limit: query.limit ? parseInt(query.limit, 10) : undefined,
+    });
+    return { messages };
+  });
+
   // Poll inbox
   app.get("/api/interactions", async (request) => {
     const query = request.query as Record<string, string>;

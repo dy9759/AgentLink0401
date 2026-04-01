@@ -13,6 +13,8 @@ import { registerListChannelsTool } from "./tools/list-channels.js";
 import { registerJoinChannelTool } from "./tools/join-channel.js";
 import { registerSendFileTool } from "./tools/send-file.js";
 import { registerDownloadFileTool } from "./tools/download-file.js";
+import { registerChatTool } from "./tools/chat.js";
+import { registerConversationsTool } from "./tools/conversations.js";
 import { sendDesktopNotification } from "./notify.js";
 
 export interface McpServerConfig {
@@ -52,6 +54,8 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
   registerJoinChannelTool(server, client, state);
   registerSendFileTool(server, client, state);
   registerDownloadFileTool(server, client);
+  registerChatTool(server, client, state);
+  registerConversationsTool(server, client, state);
 
   return { server, client, state };
 }

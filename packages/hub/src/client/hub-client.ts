@@ -247,6 +247,24 @@ export class HubClient {
     return this.fetch(`/api/interactions?${params}`);
   }
 
+  // Conversations
+  async getConversations(
+    agentId: string,
+  ): Promise<{ conversations: Array<{ agentId: string; lastMessage: Interaction; lastMessageAt: string }> }> {
+    return this.fetch(`/api/conversations?agentId=${encodeURIComponent(agentId)}`);
+  }
+
+  async getChatHistory(
+    agentId: string,
+    otherAgentId: string,
+    opts?: { afterId?: string; limit?: number },
+  ): Promise<{ messages: Interaction[] }> {
+    const params = new URLSearchParams({ agentId });
+    if (opts?.afterId) params.set("afterId", opts.afterId);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    return this.fetch(`/api/conversations/${encodeURIComponent(otherAgentId)}/messages?${params}`);
+  }
+
   // Channels
   async createChannel(request: CreateChannelRequest): Promise<Channel> {
     return this.fetch("/api/channels", {
