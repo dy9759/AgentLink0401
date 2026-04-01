@@ -9,8 +9,11 @@ export type ContentType = "text" | "json" | "action";
 
 export type Priority = "low" | "normal" | "high";
 
+export type SenderType = "agent" | "owner";
+
 export interface InteractionTarget {
-  agentId?: string; // DM
+  agentId?: string; // DM to agent
+  ownerId?: string; // DM to owner
   channel?: string; // channel message
   capability?: string; // broadcast by capability
 }
@@ -41,6 +44,9 @@ export interface Interaction {
   id: string;
   type: InteractionType;
   contentType: ContentType;
+  fromId: string; // agentId or ownerId
+  fromType: SenderType;
+  /** @deprecated Use fromId instead */
   fromAgent: string;
   target: InteractionTarget;
   payload: InteractionPayload;

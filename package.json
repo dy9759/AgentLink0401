@@ -1,15 +1,13 @@
 {
-  "name": "agentmesh",
-  "version": "0.1.0",
+  "name": "agentmesh-client",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "AgentMesh — Cross-machine, cross-model Agent communication network",
+  "description": "AgentMesh Client — MCP server + Skill for connecting to AgentMesh Hub",
   "scripts": {
     "build": "pnpm -r run build",
-    "dev": "pnpm --filter @agentmesh/hub dev",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint packages/*/src/**/*.ts",
     "typecheck": "tsc -b"
   },
   "engines": {

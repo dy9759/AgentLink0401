@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { HubClient } from "@agentmesh/hub";
+import type { HubClient } from "../client/hub-client.js";
 import type { Interaction } from "@agentmesh/shared";
 
 export function registerChatTool(server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer, client: HubClient, state: { agentId?: string }) {
@@ -63,7 +63,7 @@ export function registerChatTool(server: import("@modelcontextprotocol/sdk/serve
         // Find reply from target agent with matching correlationId
         const reply = interactions.find(
           (i) =>
-            i.fromAgent === toAgentId &&
+            (i.fromId ?? i.fromAgent) === toAgentId &&
             i.metadata?.correlationId === correlationId,
         );
 

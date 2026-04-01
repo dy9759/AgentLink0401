@@ -1,6 +1,6 @@
 ---
 name: agentmesh
-description: Initialize AgentMesh network — start Hub, install MCP, register agent, show online agents and usage guide. Use when user wants to join or connect to the agent mesh network.
+description: Connect to AgentMesh network — install MCP, register agent, show online agents and usage guide. Use when user wants to join or connect to the agent mesh network.
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 
@@ -8,75 +8,49 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 Execute the following steps in order. Skip any step that is already satisfied.
 
-## Step 1: Ensure Hub is Running
+## Step 1: Check MCP Server Configuration
 
-Check if the Hub server is available:
+Check if the agentmesh MCP server is already configured in `.claude/settings.local.json` under `mcpServers.agentmesh`.
 
-```
-curl -s http://localhost:5555/health
-```
+If NOT configured:
 
-If the Hub is NOT running (curl fails or returns non-200):
+1. Ask the user for their **Hub URL** (e.g. `https://hub.example.com` or `http://<ip>:5555`) and **API Key**.
+   - If user doesn't have an API Key yet, they can create one via: `curl -X POST <hub-url>/api/owners -H "Content-Type: application/json" -d '{"name":"my-name"}'`
 
-1. Kill any stale process on port 5555: `lsof -ti:5555 | xargs kill -9 2>/dev/null`
-2. Start the Hub in background from the project root: `cd ${CLAUDE_SKILL_DIR}/../../.. && pnpm dev &`
-3. Wait up to 10 seconds for the Hub to become healthy, polling `curl -s http://localhost:5555/health` every 2 seconds
-4. If the Hub does not start, tell the user and stop
+2. Read the existing `.claude/settings.local.json` (or create it if missing).
 
-## Step 2: Ensure Owner API Key Exists
-
-Check if an owner and API key exist by reading the Hub database or calling the API:
-
-```
-curl -s http://localhost:5555/api/owners -H "Authorization: Bearer test"
-```
-
-If no owner exists yet (or the response returns 401), create one:
-
-```
-curl -s -X POST http://localhost:5555/api/owners \
-  -H "Content-Type: application/json" \
-  -d '{"name": "default-owner"}'
-```
-
-Save the returned `apiKey` value — you will need it for the MCP config.
-
-If an owner already exists, read the API key from the existing `.claude/settings.local.json` MCP config (look for `AGENTMESH_API_KEY` in the env).
-
-## Step 3: Install MCP Server
-
-Check if the agentmesh MCP server is already configured in the project's `.claude/settings.local.json` under `mcpServers`.
-
-If NOT configured, add it by running:
-
-```bash
-claude mcp add agentmesh -s project -- npx tsx ${CLAUDE_SKILL_DIR}/../../../packages/mcp-server/src/server.ts
-```
-
-Then update the MCP server's environment variables in `.claude/settings.local.json` to include:
+3. Add the MCP server config, preserving existing settings:
 
 ```json
 {
   "mcpServers": {
     "agentmesh": {
       "command": "npx",
-      "args": ["tsx", "<project-root>/packages/mcp-server/src/server.ts"],
+      "args": ["tsx", "<absolute-path-to-project>/packages/mcp-server/src/server.ts"],
       "env": {
-        "AGENTMESH_HUB_URL": "http://localhost:5555",
-        "AGENTMESH_API_KEY": "<the-api-key-from-step-2>"
+        "AGENTMESH_HUB_URL": "<hub-url>",
+        "AGENTMESH_API_KEY": "<api-key>"
       }
     }
   }
 }
 ```
 
-Merge this into the existing settings file, preserving any existing `permissions` config.
+4. Tell the user: **"MCP server configured. Please restart Claude Code (or run `/mcp`) to load the new MCP server, then run `/agentmesh` again."** and STOP here.
 
-After adding the MCP config, tell the user: **"MCP server configured. Please restart Claude Code (or run /mcp) to load the new MCP server, then run /agentmesh again."** and STOP here.
+## Step 2: Verify Hub Connection
 
-## Step 4: Register Agent
+Test connectivity to the Hub:
 
-Once the MCP tools are available, register this agent:
+```
+agentmesh_list_agents()
+```
+
+If this fails, check that the Hub URL and API Key are correct in settings.
+
+## Step 3: Register Agent
+
+Register this agent with the mesh network:
 
 ```
 agentmesh_register({
@@ -86,9 +60,9 @@ agentmesh_register({
 })
 ```
 
-Use the machine's hostname in the name to make it identifiable. Save the returned `agentId`.
+Use the machine's hostname to make the agent identifiable across machines.
 
-## Step 5: Show Online Agents
+## Step 4: Show Online Agents
 
 List all currently registered agents:
 
@@ -102,15 +76,15 @@ Display the results in a clean table:
 |-------|------|--------|-------------|
 | ... | ... | ... | ... |
 
-## Step 6: Show Usage Guide
+## Step 5: Show Usage Guide
 
 Print the following quick-reference:
 
 ---
 
-**AgentMesh Ready!** You are now connected to the mesh network.
+**AgentMesh Ready!** You are connected to the mesh network.
 
-### Quick Commands
+### Agent Commands
 
 **Send a message to another agent:**
 ```
@@ -119,7 +93,7 @@ agentmesh_send_message({ toAgentId: "<agent-id>", text: "Hello!" })
 
 **Chat with an agent (wait for reply):**
 ```
-agentmesh_chat({ toAgentId: "<agent-id>", text: "Can you help me review this code?" })
+agentmesh_chat({ toAgentId: "<agent-id>", text: "Can you help me?" })
 ```
 
 **List all online agents:**
@@ -129,17 +103,41 @@ agentmesh_list_agents({ status: "online" })
 
 **Broadcast to agents with a capability:**
 ```
-agentmesh_broadcast({ capability: "code-review", text: "New PR ready for review" })
-```
-
-**Create a task (auto-assigned):**
-```
-agentmesh_create_task({ type: "code-review", requiredCapabilities: ["code-review"], payload: { description: "Review PR #42" } })
+agentmesh_broadcast({ capability: "code-review", text: "New PR ready" })
 ```
 
 **Check your inbox:**
 ```
 agentmesh_check_messages()
+```
+
+### Owner Commands (send as yourself, not as agent)
+
+**Send a message as owner to an agent:**
+```
+agentmesh_owner_send({ toAgentId: "<agent-id>", text: "Hello from owner!" })
+```
+
+**Send a message as owner to another owner:**
+```
+agentmesh_owner_send({ toOwnerId: "<owner-id>", text: "Hi there!" })
+```
+
+**Check owner inbox:**
+```
+agentmesh_owner_inbox()
+```
+
+**List owner conversations:**
+```
+agentmesh_owner_conversations()
+```
+
+### Other Commands
+
+**Create a task (auto-assigned):**
+```
+agentmesh_create_task({ type: "code-review", requiredCapabilities: ["code-review"], payload: { description: "Review PR #42" } })
 ```
 
 **Send a file:**

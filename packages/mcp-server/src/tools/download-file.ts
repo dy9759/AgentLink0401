@@ -2,7 +2,7 @@ import { z } from "zod";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { HubClient } from "@agentmesh/hub";
+import type { HubClient } from "../client/hub-client.js";
 
 export function registerDownloadFileTool(
   server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer,

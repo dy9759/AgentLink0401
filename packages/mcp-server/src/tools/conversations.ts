@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { HubClient } from "@agentmesh/hub";
+import type { HubClient } from "../client/hub-client.js";
 
 export function registerConversationsTool(server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer, client: HubClient, state: { agentId?: string }) {
   // List all conversations (agents you've chatted with)

@@ -6,8 +6,7 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../shared" },
-    { "path": "../hub" }
+    { "path": "../shared" }
   ],
   "include": ["src/**/*.ts"]
 }

@@ -18,7 +18,6 @@
     "dev": "tsx src/server.ts"
   },
   "dependencies": {
-    "@agentmesh/hub": "workspace:*",
     "@agentmesh/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "mime-types": "^3.0.2",

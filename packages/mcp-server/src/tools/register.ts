@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { HubClient } from "@agentmesh/hub";
+import type { HubClient } from "../client/hub-client.js";
 
-export function registerAgentTool(server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer, client: HubClient, state: { agentId?: string; onRegistered?: (agentId: string) => void }) {
+export function registerAgentTool(server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer, client: HubClient, state: { agentId?: string; ownerId?: string; onRegistered?: (agentId: string) => void }) {
   server.registerTool(
     "agentmesh_register",
     {
@@ -17,6 +17,7 @@ export function registerAgentTool(server: import("@modelcontextprotocol/sdk/serv
       const result = await client.register({ name, type: type ?? "generic", capabilities, machineId });
       client.setAgentToken(result.agentToken);
       state.agentId = result.agentId;
+      state.ownerId = result.ownerId;
 
       // Trigger WebSocket connection for real-time notifications
       if (state.onRegistered) {

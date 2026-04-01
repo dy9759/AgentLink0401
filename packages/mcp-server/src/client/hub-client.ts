@@ -254,15 +254,33 @@ export class HubClient {
     return this.fetch(`/api/conversations?agentId=${encodeURIComponent(agentId)}`);
   }
 
+  async getOwnerConversations(
+    ownerId: string,
+  ): Promise<{ conversations: Array<{ peerId: string; peerType: string; lastMessage: Interaction; lastMessageAt: string }> }> {
+    return this.fetch(`/api/conversations?ownerId=${encodeURIComponent(ownerId)}`);
+  }
+
   async getChatHistory(
-    agentId: string,
-    otherAgentId: string,
+    myId: string,
+    otherId: string,
     opts?: { afterId?: string; limit?: number },
+    idType: "agentId" | "ownerId" = "agentId",
   ): Promise<{ messages: Interaction[] }> {
-    const params = new URLSearchParams({ agentId });
+    const params = new URLSearchParams({ [idType]: myId });
     if (opts?.afterId) params.set("afterId", opts.afterId);
     if (opts?.limit) params.set("limit", String(opts.limit));
-    return this.fetch(`/api/conversations/${encodeURIComponent(otherAgentId)}/messages?${params}`);
+    return this.fetch(`/api/conversations/${encodeURIComponent(otherId)}/messages?${params}`);
+  }
+
+  // Owner inbox
+  async pollOwnerInteractions(
+    ownerId: string,
+    opts?: { afterId?: string; limit?: number },
+  ): Promise<ListInteractionsResponse> {
+    const params = new URLSearchParams({ ownerId });
+    if (opts?.afterId) params.set("afterId", opts.afterId);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    return this.fetch(`/api/interactions?${params}`);
   }
 
   // Channels

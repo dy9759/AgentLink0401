@@ -13,6 +13,7 @@ export interface AuthContext {
 // Agent Registration
 export interface RegisterResponse {
   agentId: string;
+  ownerId: string;
   agentToken: string;
   expiresIn: number;
 }

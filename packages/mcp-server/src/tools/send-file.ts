@@ -2,7 +2,7 @@ import { z } from "zod";
 import { readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { lookup } from "mime-types";
-import type { HubClient } from "@agentmesh/hub";
+import type { HubClient } from "../client/hub-client.js";
 
 const FILE_SIZE_THRESHOLD = 5 * 1024 * 1024; // 5MB
 

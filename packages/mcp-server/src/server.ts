@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { HubClient } from "@agentmesh/hub";
+import { HubClient } from "./client/hub-client.js";
 import { registerAgentTool } from "./tools/register.js";
 import { registerListAgentsTool } from "./tools/list-agents.js";
 import { registerSendMessageTool } from "./tools/send-message.js";
@@ -15,6 +15,7 @@ import { registerSendFileTool } from "./tools/send-file.js";
 import { registerDownloadFileTool } from "./tools/download-file.js";
 import { registerChatTool } from "./tools/chat.js";
 import { registerConversationsTool } from "./tools/conversations.js";
+import { registerOwnerMessageTools } from "./tools/owner-messages.js";
 import { sendDesktopNotification } from "./notify.js";
 
 export interface McpServerConfig {
@@ -24,6 +25,7 @@ export interface McpServerConfig {
 
 export interface McpServerState {
   agentId?: string;
+  ownerId?: string;
   onRegistered?: (agentId: string) => void;
 }
 
@@ -38,7 +40,7 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
 
   const server = new McpServer({
     name: "agentmesh",
-    version: "0.1.0",
+    version: "0.2.0",
   });
 
   // Register all tools
@@ -56,14 +58,20 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
   registerDownloadFileTool(server, client);
   registerChatTool(server, client, state);
   registerConversationsTool(server, client, state);
+  registerOwnerMessageTools(server, client, state);
 
   return { server, client, state };
 }
 
 // CLI entrypoint: stdio transport
 async function main() {
-  const hubUrl = process.env.AGENTMESH_HUB_URL ?? "http://localhost:5555";
+  const hubUrl = process.env.AGENTMESH_HUB_URL;
   const apiKey = process.env.AGENTMESH_API_KEY ?? "";
+
+  if (!hubUrl) {
+    console.error("[agentmesh-mcp] Error: AGENTMESH_HUB_URL is required");
+    process.exit(1);
+  }
 
   if (!apiKey) {
     console.error("[agentmesh-mcp] Warning: AGENTMESH_API_KEY not set");
@@ -72,23 +80,31 @@ async function main() {
   const { server, client, state } = createMcpServer({ hubUrl, apiKey });
   const transport = new StdioServerTransport();
 
+  // Resolve ownerId from API key by calling health or a lightweight endpoint
+  // The ownerId will be set when the register tool discovers it
+  // For now, try to get it from the Hub via agent list (owner auth returns ownerId)
+  try {
+    await client.health();
+    console.error(`[agentmesh-mcp] Hub reachable at ${hubUrl}`);
+  } catch (err) {
+    console.error(`[agentmesh-mcp] Warning: Hub not reachable at ${hubUrl}:`, err);
+  }
+
   // After agent registration, connect WebSocket for real-time notifications
   state.onRegistered = (agentId: string) => {
     client.connectWebSocket(agentId);
     client.onInteraction((interaction) => {
-      const fromAgent = interaction.fromAgent;
+      const fromId = interaction.fromId ?? interaction.fromAgent;
       const preview = interaction.payload.text?.slice(0, 100) || (interaction.payload.file ? `[File: ${interaction.payload.file.fileName}]` : "[message]");
 
-      // Send desktop notification
       sendDesktopNotification(
         "AgentMesh",
-        `${fromAgent}: ${preview}`,
+        `${fromId}: ${preview}`,
       );
 
-      // Also log to MCP (visible in Claude Code logs)
       server.sendLoggingMessage({
         level: "info",
-        data: `[AgentMesh] New message from ${fromAgent}: ${preview}`,
+        data: `[AgentMesh] New message from ${fromId}: ${preview}`,
       }).catch(() => {});
     });
     console.error(`[agentmesh-mcp] WebSocket connected for agent ${agentId}`);

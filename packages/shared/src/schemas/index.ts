@@ -47,15 +47,18 @@ export const ContentTypeSchema = z.enum(["text", "json", "action"]);
 
 export const PrioritySchema = z.enum(["low", "normal", "high"]);
 
+export const SenderTypeSchema = z.enum(["agent", "owner"]);
+
 export const InteractionTargetSchema = z
   .object({
     agentId: z.string().optional(),
+    ownerId: z.string().optional(),
     channel: z.string().optional(),
     capability: z.string().optional(),
   })
   .refine(
-    (t) => t.agentId || t.channel || t.capability,
-    "At least one target (agentId, channel, or capability) is required",
+    (t) => t.agentId || t.ownerId || t.channel || t.capability,
+    "At least one target (agentId, ownerId, channel, or capability) is required",
   );
 
 export const InteractionMetadataSchema = z.object({
@@ -92,7 +95,9 @@ export const InteractionSchema = z.object({
   id: z.string(),
   type: InteractionTypeSchema,
   contentType: ContentTypeSchema,
-  fromAgent: z.string(),
+  fromId: z.string(),
+  fromType: SenderTypeSchema,
+  fromAgent: z.string(), // deprecated, kept for compat
   target: InteractionTargetSchema,
   payload: InteractionPayloadSchema,
   metadata: InteractionMetadataSchema.optional(),
