@@ -14,7 +14,7 @@ import type { ApiKeyStore } from "./api-key.js";
  * Skips auth for public endpoints: /health, /api/owners (POST)
  */
 
-const PUBLIC_PATHS = new Set(["/health"]);
+const PUBLIC_PATHS = new Set(["/health", "/ws"]);
 
 function isPublicPath(path: string): boolean {
   if (PUBLIC_PATHS.has(path)) return true;

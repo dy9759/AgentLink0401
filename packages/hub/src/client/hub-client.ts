@@ -18,7 +18,10 @@ import type {
   ListTasksResponse,
   HealthResponse,
   CreateOwnerResponse,
+  WSMessage,
+  WSInteractionPayload,
 } from "@agentmesh/shared";
+import WebSocket from "ws";
 
 export interface HubClientConfig {
   hubUrl: string;
@@ -29,6 +32,11 @@ export interface HubClientConfig {
 export class HubClient {
   private hubUrl: string;
   private token: string;
+  private ws: WebSocket | null = null;
+  private wsReconnectTimer: NodeJS.Timeout | null = null;
+  private wsReconnectDelay = 5000;
+  private interactionCallbacks: Array<(interaction: Interaction) => void> = [];
+  private wsConnected = false;
 
   constructor(config: HubClientConfig) {
     this.hubUrl = config.hubUrl.replace(/\/$/, "");
@@ -37,6 +45,104 @@ export class HubClient {
 
   setAgentToken(token: string): void {
     this.token = token;
+  }
+
+  getAgentToken(): string {
+    return this.token;
+  }
+
+  // WebSocket methods
+  connectWebSocket(agentId: string): void {
+    if (this.ws) return;
+
+    const wsUrl = this.hubUrl.replace(/^http/, "ws") + "/ws";
+
+    try {
+      this.ws = new WebSocket(wsUrl);
+
+      this.ws.on("open", () => {
+        this.ws!.send(JSON.stringify({
+          type: "hello",
+          payload: { agentId, agentToken: this.token },
+        }));
+      });
+
+      this.ws.on("message", (data) => {
+        try {
+          const msg: WSMessage = JSON.parse(data.toString());
+          this.handleWSMessage(msg);
+        } catch {
+          // ignore parse errors
+        }
+      });
+
+      this.ws.on("close", () => {
+        this.wsConnected = false;
+        this.ws = null;
+        this.scheduleReconnect(agentId);
+      });
+
+      this.ws.on("error", () => {
+        // error event is followed by close event
+      });
+    } catch {
+      this.scheduleReconnect(agentId);
+    }
+  }
+
+  private handleWSMessage(msg: WSMessage): void {
+    switch (msg.type) {
+      case "ack":
+        this.wsConnected = true;
+        this.wsReconnectDelay = 5000; // reset backoff
+        console.log("[hub-client] WebSocket authenticated");
+        break;
+      case "interaction": {
+        const payload = msg.payload as WSInteractionPayload;
+        if (payload?.interaction) {
+          for (const cb of this.interactionCallbacks) {
+            try { cb(payload.interaction); } catch { /* ignore */ }
+          }
+        }
+        break;
+      }
+      case "ping":
+        this.ws?.send(JSON.stringify({ type: "pong" }));
+        break;
+      case "error":
+        console.error("[hub-client] WS error:", msg.payload);
+        break;
+    }
+  }
+
+  private scheduleReconnect(agentId: string): void {
+    if (this.wsReconnectTimer) return;
+    this.wsReconnectTimer = setTimeout(() => {
+      this.wsReconnectTimer = null;
+      this.connectWebSocket(agentId);
+      // Exponential backoff: 5s → 10s → 20s → 30s max
+      this.wsReconnectDelay = Math.min(this.wsReconnectDelay * 2, 30000);
+    }, this.wsReconnectDelay);
+  }
+
+  onInteraction(callback: (interaction: Interaction) => void): void {
+    this.interactionCallbacks.push(callback);
+  }
+
+  isWebSocketConnected(): boolean {
+    return this.wsConnected;
+  }
+
+  disconnectWebSocket(): void {
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
+    }
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.wsConnected = false;
   }
 
   private async fetch<T>(
@@ -217,5 +323,82 @@ export class HubClient {
   // Health
   async health(): Promise<HealthResponse> {
     return this.fetch("/health");
+  }
+
+  // Files
+  async uploadFile(
+    filePath: string,
+  ): Promise<{ id: string; fileName: string; size: number; expiresAt: string }> {
+    const { readFileSync } = await import("node:fs");
+    const { basename } = await import("node:path");
+
+    const fileName = basename(filePath);
+    const fileBuffer = readFileSync(filePath);
+
+    // Build multipart body manually (Node.js built-in FormData not available in all envs)
+    const boundary = `----AgentMesh${Date.now()}`;
+    const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+    const footer = `\r\n--${boundary}--\r\n`;
+
+    const body = Buffer.concat([
+      Buffer.from(header),
+      fileBuffer,
+      Buffer.from(footer),
+    ]);
+
+    const url = `${this.hubUrl}/api/files`;
+    const headers: Record<string, string> = {
+      "Content-Type": `multipart/form-data; boundary=${boundary}`,
+    };
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`File upload failed ${response.status}: ${text}`);
+    }
+
+    return response.json() as Promise<{
+      id: string;
+      fileName: string;
+      size: number;
+      expiresAt: string;
+    }>;
+  }
+
+  async downloadFile(
+    fileId: string,
+    destPath: string,
+  ): Promise<{ filePath: string; fileName: string; size: number }> {
+    const { writeFileSync } = await import("node:fs");
+
+    const url = `${this.hubUrl}/api/files/${fileId}`;
+    const headers: Record<string, string> = {};
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`File download failed ${response.status}: ${text}`);
+    }
+
+    const disposition = response.headers.get("content-disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const fileName = match ? match[1] : `file-${fileId}`;
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    writeFileSync(destPath, buffer);
+
+    return { filePath: destPath, fileName, size: buffer.length };
   }
 }

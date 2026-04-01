@@ -96,6 +96,25 @@ export const channelMembers = sqliteTable("channel_members", {
     .default(sql`(datetime('now'))`),
 });
 
+// Files (file transfer storage)
+export const files = sqliteTable("files", {
+  id: text("id").primaryKey(),
+  fileName: text("file_name").notNull(),
+  contentType: text("content_type").notNull(),
+  size: integer("size").notNull(),
+  storagePath: text("storage_path").notNull(),
+  fromAgent: text("from_agent")
+    .notNull()
+    .references(() => agents.agentId),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => owners.ownerId),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  expiresAt: text("expires_at").notNull(),
+});
+
 // Tasks (collaboration model)
 export const tasks = sqliteTable("tasks", {
   id: text("id").primaryKey(),

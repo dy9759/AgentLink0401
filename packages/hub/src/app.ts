@@ -13,7 +13,15 @@ import { agentRoutes } from "./routes/agents.js";
 import { interactionRoutes } from "./routes/interactions.js";
 import { channelRoutes } from "./routes/channels.js";
 import { taskRoutes } from "./routes/tasks.js";
+import { FileService } from "./services/file.service.js";
+import { fileRoutes } from "./routes/files.js";
 import { startStaleAgentReaper } from "./tasks/stale-agent-reaper.js";
+import { startFileExpiryReaper } from "./tasks/file-expiry-reaper.js";
+import multipart from "@fastify/multipart";
+import websocket from "@fastify/websocket";
+import { WebSocketManager } from "./services/websocket-manager.js";
+import { websocketRoutes } from "./routes/websocket.js";
+import { join } from "node:path";
 
 export interface AppConfig {
   dbUrl?: string;
@@ -31,12 +39,20 @@ export function createApp(config: AppConfig = {}) {
   // Services
   const ownerService = new OwnerService(db);
   const registryService = new RegistryService(db);
+  const wsManager = new WebSocketManager();
   const messageBusService = new MessageBusService(db, registryService);
+  messageBusService.setWebSocketManager(wsManager);
   const channelService = new ChannelService(db);
   const taskEngineService = new TaskEngineService(db, registryService);
 
+  // File service
+  const uploadsDir = join(process.cwd(), "uploads");
+  const fileService = new FileService(db, uploadsDir);
+
   // Middleware
   app.register(cors);
+  app.register(websocket);
+  app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB
   app.addHook("onRequest", createAuthMiddleware(ownerService));
 
   // Error handler for Zod validation errors
@@ -60,10 +76,17 @@ export function createApp(config: AppConfig = {}) {
   interactionRoutes(app, messageBusService);
   channelRoutes(app, channelService, messageBusService);
   taskRoutes(app, taskEngineService);
+  fileRoutes(app, fileService);
+  websocketRoutes(app, wsManager);
 
   // Background tasks
   const reaper = startStaleAgentReaper(registryService);
-  app.addHook("onClose", () => clearInterval(reaper));
+  const fileReaper = startFileExpiryReaper(fileService);
+  app.addHook("onClose", () => {
+    clearInterval(reaper);
+    clearInterval(fileReaper);
+    wsManager.destroy();
+  });
 
   return {
     app,
@@ -74,6 +97,7 @@ export function createApp(config: AppConfig = {}) {
       messageBusService,
       channelService,
       taskEngineService,
+      fileService,
     },
   };
 }

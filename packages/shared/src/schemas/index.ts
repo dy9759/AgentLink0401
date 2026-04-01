@@ -66,9 +66,18 @@ export const InteractionMetadataSchema = z.object({
   correlationId: z.string().optional(),
 });
 
+export const FileAttachmentSchema = z.object({
+  fileId: z.string().optional(),
+  fileName: z.string().min(1).max(255),
+  contentType: z.string().min(1),
+  size: z.number().int().positive(),
+  base64: z.string().optional(),
+});
+
 export const InteractionPayloadSchema = z.object({
   text: z.string().optional(),
   data: z.record(z.unknown()).optional(),
+  file: FileAttachmentSchema.optional(),
 });
 
 export const SendInteractionRequestSchema = z.object({

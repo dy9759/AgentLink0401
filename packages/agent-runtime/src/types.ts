@@ -14,4 +14,5 @@ export interface RuntimeConfig {
   machineId?: string;
   pollIntervalMs?: number;
   heartbeatIntervalMs?: number;
+  useWebSocket?: boolean; // default: true
 }

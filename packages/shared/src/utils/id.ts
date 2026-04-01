@@ -20,3 +20,7 @@ export function generateTaskId(): string {
 export function generateInteractionId(): string {
   return generateId("int");
 }
+
+export function generateFileId(): string {
+  return generateId("file");
+}

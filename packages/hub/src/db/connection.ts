@@ -113,6 +113,20 @@ export function initializeDatabase(db: DB): void {
     )
   `);
 
+  db.run(sql`
+    CREATE TABLE IF NOT EXISTS files (
+      id TEXT PRIMARY KEY,
+      file_name TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      storage_path TEXT NOT NULL,
+      from_agent TEXT NOT NULL REFERENCES agents(agent_id),
+      owner_id TEXT NOT NULL REFERENCES owners(owner_id),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
+    )
+  `);
+
   // Indexes for common queries
   db.run(sql`CREATE INDEX IF NOT EXISTS idx_agents_owner ON agents(owner_id)`);
   db.run(sql`CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status)`);
@@ -120,4 +134,5 @@ export function initializeDatabase(db: DB): void {
   db.run(sql`CREATE INDEX IF NOT EXISTS idx_interactions_channel ON interactions(channel)`);
   db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
   db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_to)`);
+  db.run(sql`CREATE INDEX IF NOT EXISTS idx_files_expires ON files(expires_at)`);
 }

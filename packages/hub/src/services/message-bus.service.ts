@@ -8,6 +8,7 @@ import type { DB } from "../db/connection.js";
 import { interactions, channelMembers } from "../db/schema.js";
 import type { MessageBus } from "../interfaces/message-bus.js";
 import type { Registry } from "../interfaces/registry.js";
+import type { WebSocketManager } from "./websocket-manager.js";
 
 function rowToInteraction(row: typeof interactions.$inferSelect): Interaction {
   return {
@@ -28,10 +29,16 @@ function rowToInteraction(row: typeof interactions.$inferSelect): Interaction {
 }
 
 export class MessageBusService implements MessageBus {
+  private wsManager?: WebSocketManager;
+
   constructor(
     private db: DB,
     private registry: Registry,
   ) {}
+
+  setWebSocketManager(wsManager: WebSocketManager): void {
+    this.wsManager = wsManager;
+  }
 
   async send(
     fromAgentId: string,
@@ -60,7 +67,7 @@ export class MessageBusService implements MessageBus {
       })
       .run();
 
-    return {
+    const interaction: Interaction = {
       id,
       type: request.type,
       contentType: request.contentType,
@@ -71,6 +78,13 @@ export class MessageBusService implements MessageBus {
       status: "pending",
       createdAt: now,
     };
+
+    // Try WebSocket push for DM
+    if (this.wsManager && request.target.agentId) {
+      this.wsManager.pushToAgent(request.target.agentId, interaction);
+    }
+
+    return interaction;
   }
 
   async sendToChannel(
@@ -99,7 +113,7 @@ export class MessageBusService implements MessageBus {
 
     const results: Interaction[] = [];
     for (const agent of matchedAgents) {
-      if (agent.agentId === fromAgentId) continue; // don't send to self
+      if (agent.agentId === fromAgentId) continue;
       const interaction = await this.send(fromAgentId, {
         ...request,
         target: { agentId: agent.agentId, capability },

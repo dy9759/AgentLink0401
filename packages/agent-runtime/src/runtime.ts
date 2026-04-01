@@ -16,6 +16,7 @@ export class AgentRuntime {
   private running = false;
   private lastSeenId: string | undefined;
   private heartbeatTimer: NodeJS.Timeout | null = null;
+  private wsActive = false;
 
   constructor(config: RuntimeConfig) {
     this.config = config;
@@ -59,7 +60,8 @@ export class AgentRuntime {
    * Start the autonomous runtime loop:
    * 1. Register with Hub
    * 2. Start heartbeat
-   * 3. Start message poll loop
+   * 3. Connect WebSocket (if enabled)
+   * 4. Start message poll loop (as fallback)
    */
   async start(): Promise<void> {
     if (this.running) return;
@@ -82,7 +84,12 @@ export class AgentRuntime {
     // Start heartbeat
     this.startHeartbeat();
 
-    // Start message loop
+    // Connect WebSocket for real-time messages
+    if (this.config.useWebSocket !== false) {
+      this.startWebSocket();
+    }
+
+    // Start message loop (always runs as fallback, slower when WS is active)
     this.running = true;
     this.messageLoop();
   }
@@ -98,6 +105,9 @@ export class AgentRuntime {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+
+    // Disconnect WebSocket
+    this.client.disconnectWebSocket();
 
     if (this.agentId) {
       try {
@@ -116,6 +126,20 @@ export class AgentRuntime {
     return this.client;
   }
 
+  private startWebSocket(): void {
+    if (!this.agentId) return;
+
+    this.client.connectWebSocket(this.agentId);
+
+    // Handle messages received via WebSocket
+    this.client.onInteraction(async (interaction) => {
+      this.wsActive = true;
+      await this.handleInteraction(interaction);
+    });
+
+    console.log(`[runtime] WebSocket connecting...`);
+  }
+
   private startHeartbeat(): void {
     const interval = this.config.heartbeatIntervalMs ?? 30_000;
 
@@ -130,7 +154,7 @@ export class AgentRuntime {
   }
 
   private async messageLoop(): Promise<void> {
-    const pollInterval = this.config.pollIntervalMs ?? 3000;
+    const basePollInterval = this.config.pollIntervalMs ?? 3000;
 
     while (this.running) {
       try {
@@ -149,7 +173,9 @@ export class AgentRuntime {
         console.error("[runtime] Poll error:", err);
       }
 
-      await sleep(pollInterval);
+      // When WS is active, poll less frequently (10s); otherwise normal (3s)
+      const interval = this.client.isWebSocketConnected() ? 10_000 : basePollInterval;
+      await sleep(interval);
     }
   }
 

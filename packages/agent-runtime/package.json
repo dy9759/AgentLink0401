@@ -15,7 +15,11 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@agentmesh/hub": "workspace:*",
     "@agentmesh/shared": "workspace:*",
-    "@agentmesh/hub": "workspace:*"
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
   }
 }

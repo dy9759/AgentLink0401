@@ -23,9 +23,18 @@ export interface InteractionMetadata {
   correlationId?: string; // link request ↔ response
 }
 
+export interface FileAttachment {
+  fileId?: string; // reference to uploaded file (for large files >=5MB)
+  fileName: string;
+  contentType: string;
+  size: number;
+  base64?: string; // inline content (for small files <5MB)
+}
+
 export interface InteractionPayload {
   text?: string; // natural language (first-class)
   data?: Record<string, unknown>; // structured data
+  file?: FileAttachment; // file attachment
 }
 
 export interface Interaction {
@@ -46,4 +55,28 @@ export interface SendInteractionRequest {
   target: InteractionTarget;
   payload: InteractionPayload;
   metadata?: InteractionMetadata;
+}
+
+// WebSocket protocol
+export type WSMessageType =
+  | "hello"
+  | "ping"
+  | "pong"
+  | "interaction"
+  | "ack"
+  | "error";
+
+export interface WSMessage {
+  type: WSMessageType;
+  payload?: unknown;
+  id?: string;
+}
+
+export interface WSHelloPayload {
+  agentId: string;
+  agentToken: string;
+}
+
+export interface WSInteractionPayload {
+  interaction: Interaction;
 }
