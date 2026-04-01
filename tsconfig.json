@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/hub" },
+    { "path": "packages/agent-runtime" },
+    { "path": "packages/mcp-server" },
+    { "path": "packages/a2a-adapter" },
+    { "path": "packages/rest-client" }
+  ]
+}
