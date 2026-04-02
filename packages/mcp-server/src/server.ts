@@ -16,6 +16,10 @@ import { registerDownloadFileTool } from "./tools/download-file.js";
 import { registerChatTool } from "./tools/chat.js";
 import { registerConversationsTool } from "./tools/conversations.js";
 import { registerOwnerMessageTools } from "./tools/owner-messages.js";
+import { registerCreateSessionTool } from "./tools/create-session.js";
+import { registerSessionStatusTool } from "./tools/session-status.js";
+import { registerMultiTurnChatTool } from "./tools/multi-turn-chat.js";
+import { registerShareContextTool } from "./tools/share-context.js";
 import { sendDesktopNotification } from "./notify.js";
 
 export interface McpServerConfig {
@@ -59,6 +63,10 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
   registerChatTool(server, client, state);
   registerConversationsTool(server, client, state);
   registerOwnerMessageTools(server, client, state);
+  registerCreateSessionTool(server, client, state);
+  registerSessionStatusTool(server, client);
+  registerMultiTurnChatTool(server, client, state);
+  registerShareContextTool(server, client);
 
   return { server, client, state };
 }

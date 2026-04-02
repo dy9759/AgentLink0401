@@ -356,6 +356,39 @@ export class HubClient {
     });
   }
 
+  // Sessions
+  async createSession(request: { title: string; participants: Array<{ id: string; type: string }>; maxTurns?: number; context?: Record<string, unknown> }): Promise<any> {
+    return this.fetch("/api/sessions", { method: "POST", body: JSON.stringify(request) });
+  }
+
+  async getSession(sessionId: string): Promise<any> {
+    return this.fetch(`/api/sessions/${sessionId}`);
+  }
+
+  async updateSession(sessionId: string, updates: Record<string, unknown>): Promise<any> {
+    return this.fetch(`/api/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify(updates) });
+  }
+
+  async getSessionMessages(sessionId: string, opts?: { afterId?: string; limit?: number }): Promise<any> {
+    const params = new URLSearchParams();
+    if (opts?.afterId) params.set("afterId", opts.afterId);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return this.fetch(`/api/sessions/${sessionId}/messages${qs ? `?${qs}` : ""}`);
+  }
+
+  async joinSession(sessionId: string): Promise<void> {
+    return this.fetch(`/api/sessions/${sessionId}/join`, { method: "POST" });
+  }
+
+  async listSessions(opts?: { status?: string; creatorId?: string }): Promise<any> {
+    const params = new URLSearchParams();
+    if (opts?.status) params.set("status", opts.status);
+    if (opts?.creatorId) params.set("creatorId", opts.creatorId);
+    const qs = params.toString();
+    return this.fetch(`/api/sessions${qs ? `?${qs}` : ""}`);
+  }
+
   // Health
   // Owner whoami
   async whoami(): Promise<{ ownerId: string; name: string }> {
