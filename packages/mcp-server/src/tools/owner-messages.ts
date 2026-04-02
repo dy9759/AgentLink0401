@@ -32,29 +32,36 @@ export function registerOwnerMessageTools(
         };
       }
 
-      const result = await client.sendInteraction({
-        type: "message",
-        contentType: "text",
-        target: {
-          agentId: toAgentId,
-          ownerId: toOwnerId,
-        },
-        payload: { text },
-        metadata: { expectReply, correlationId },
-      });
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              interactionId: result.id,
-              delivered: result.delivered,
-              message: `Owner message sent to ${toAgentId ?? toOwnerId}`,
-            }, null, 2),
+      try {
+        const result = await client.sendInteraction({
+          type: "message",
+          contentType: "text",
+          target: {
+            agentId: toAgentId,
+            ownerId: toOwnerId,
           },
-        ],
-      };
+          payload: { text },
+          metadata: { expectReply, correlationId },
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                interactionId: result.id,
+                delivered: result.delivered,
+                message: `Owner message sent to ${toAgentId ?? toOwnerId}`,
+              }, null, 2),
+            },
+          ],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to send owner message: ${err.message ?? err}` }) }],
+          isError: true,
+        };
+      }
     },
   );
 

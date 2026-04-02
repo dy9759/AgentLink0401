@@ -31,26 +31,33 @@ export function registerCreateSessionTool(
         type: id.startsWith("owner-") ? "owner" : "agent",
       }));
 
-      const result = await client.createSession({
-        title,
-        participants,
-        maxTurns,
-        context: topic ? { topic } : undefined,
-      });
+      try {
+        const result = await client.createSession({
+          title,
+          participants,
+          maxTurns,
+          context: topic ? { topic } : undefined,
+        });
 
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            sessionId: result.id,
-            title: result.title,
-            status: result.status,
-            participants: result.participants,
-            maxTurns: result.maxTurns,
-            message: `Session '${title}' created. Use agentmesh_multi_turn_chat to start the conversation.`,
-          }, null, 2),
-        }],
-      };
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              sessionId: result.id,
+              title: result.title,
+              status: result.status,
+              participants: result.participants,
+              maxTurns: result.maxTurns,
+              message: `Session '${title}' created. Use agentmesh_multi_turn_chat to start the conversation.`,
+            }, null, 2),
+          }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to create session: ${err.message ?? err}` }) }],
+          isError: true,
+        };
+      }
     },
   );
 }

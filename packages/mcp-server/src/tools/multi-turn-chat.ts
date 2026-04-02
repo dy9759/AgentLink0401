@@ -35,24 +35,32 @@ export function registerMultiTurnChatTool(
 
       // Step 1: Create session if needed
       if (currentSessionId === "") {
-        const session = await client.createSession({
-          title: topic ?? `Chat with ${targetAgentId}`,
-          participants: [{ id: targetAgentId, type: "agent" }],
-          maxTurns: maxTurns ?? 20,
-          context: topic ? { topic } : undefined,
-        });
-        currentSessionId = session.id;
+        try {
+          const session = await client.createSession({
+            title: topic ?? `Chat with ${targetAgentId}`,
+            participants: [{ id: targetAgentId, type: "agent" }],
+            maxTurns: maxTurns ?? 20,
+            context: topic ? { topic } : undefined,
+          });
+          currentSessionId = session.id;
+        } catch (err: any) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to create session: ${err.message ?? err}` }) }], isError: true };
+        }
       }
 
       // Step 2: Send message with sessionId
       const correlationId = `mtc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await client.sendInteraction({
-        type: "message",
-        contentType: "text",
-        target: { agentId: targetAgentId, sessionId: currentSessionId },
-        payload: { text: message },
-        metadata: { expectReply: true, correlationId },
-      });
+      try {
+        await client.sendInteraction({
+          type: "message",
+          contentType: "text",
+          target: { agentId: targetAgentId, sessionId: currentSessionId },
+          payload: { text: message },
+          metadata: { expectReply: true, correlationId },
+        });
+      } catch (err: any) {
+        return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to send message: ${err.message ?? err}`, sessionId: currentSessionId }) }], isError: true };
+      }
 
       // Step 3: Poll for reply
       const startTime = Date.now();
@@ -73,7 +81,8 @@ export function registerMultiTurnChatTool(
         const reply = interactions.find(
           (i) =>
             (i.fromId ?? i.fromAgent) === targetAgentId &&
-            (i.target?.sessionId === currentSessionId || i.metadata?.correlationId === correlationId),
+            (i.metadata?.correlationId === correlationId ||
+             (i.target?.sessionId === currentSessionId && !i.metadata?.correlationId)),
         );
 
         if (reply) {

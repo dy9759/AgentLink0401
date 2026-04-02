@@ -14,10 +14,17 @@ export function registerSessionStatusTool(
       },
     },
     async ({ sessionId }) => {
-      const session = await client.getSession(sessionId);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(session, null, 2) }],
-      };
+      try {
+        const session = await client.getSession(sessionId);
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(session, null, 2) }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to get session: ${err.message ?? err}` }) }],
+          isError: true,
+        };
+      }
     },
   );
 
@@ -30,10 +37,17 @@ export function registerSessionStatusTool(
       },
     },
     async ({ status }) => {
-      const result = await client.listSessions({ status });
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-      };
+      try {
+        const result = await client.listSessions({ status });
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to list sessions: ${err.message ?? err}` }) }],
+          isError: true,
+        };
+      }
     },
   );
 }

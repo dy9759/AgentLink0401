@@ -14,6 +14,13 @@ export function registerSendMessageTool(server: import("@modelcontextprotocol/sd
       },
     },
     async ({ toAgentId, text, expectReply, correlationId }) => {
+      if (!state.agentId) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Not registered. Call agentmesh_register first." }) }],
+          isError: true,
+        };
+      }
+
       const result = await client.sendInteraction({
         type: "message",
         contentType: "text",

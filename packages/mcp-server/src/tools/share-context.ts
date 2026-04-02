@@ -28,35 +28,50 @@ export function registerShareContextTool(
       },
     },
     async ({ sessionId, files, codeSnippets, decision, summary }) => {
-      // Get current context
-      const session = await client.getSession(sessionId);
-      const ctx: Record<string, any> = session.context ?? { topic: session.title };
+      try {
+        // Get current context
+        const session = await client.getSession(sessionId);
+        const ctx: Record<string, any> = session.context ?? { topic: session.title };
 
-      // Merge new context
-      if (files) ctx.files = [...(ctx.files ?? []), ...files];
-      if (codeSnippets) ctx.codeSnippets = [...(ctx.codeSnippets ?? []), ...codeSnippets];
-      if (decision) {
-        ctx.decisions = [...(ctx.decisions ?? []), {
-          decision,
-          by: "current-agent",
-          at: new Date().toISOString(),
-        }];
+        // Merge new context
+        if (files) {
+          const existing = ctx.files ?? [];
+          const merged = [...existing];
+          for (const f of files) {
+            const idx = merged.findIndex((e: any) => e.name === f.name);
+            if (idx >= 0) merged[idx] = f; else merged.push(f);
+          }
+          ctx.files = merged;
+        }
+        if (codeSnippets) ctx.codeSnippets = [...(ctx.codeSnippets ?? []), ...codeSnippets];
+        if (decision) {
+          ctx.decisions = [...(ctx.decisions ?? []), {
+            decision,
+            by: "current-agent",
+            at: new Date().toISOString(),
+          }];
+        }
+        if (summary) ctx.summary = summary;
+
+        // Update session context
+        await client.updateSession(sessionId, { context: ctx });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              sessionId,
+              message: "Context updated",
+              context: ctx,
+            }, null, 2),
+          }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to share context: ${err.message ?? err}` }) }],
+          isError: true,
+        };
       }
-      if (summary) ctx.summary = summary;
-
-      // Update session context
-      await client.updateSession(sessionId, { context: ctx });
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            sessionId,
-            message: "Context updated",
-            context: ctx,
-          }, null, 2),
-        }],
-      };
     },
   );
 
