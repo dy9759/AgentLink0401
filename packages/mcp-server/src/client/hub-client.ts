@@ -357,6 +357,11 @@ export class HubClient {
   }
 
   // Health
+  // Owner whoami
+  async whoami(): Promise<{ ownerId: string; name: string }> {
+    return this.fetch("/api/owners/me");
+  }
+
   async health(): Promise<HealthResponse> {
     return this.fetch("/health");
   }

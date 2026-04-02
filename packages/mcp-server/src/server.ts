@@ -80,12 +80,11 @@ async function main() {
   const { server, client, state } = createMcpServer({ hubUrl, apiKey });
   const transport = new StdioServerTransport();
 
-  // Resolve ownerId from API key by calling health or a lightweight endpoint
-  // The ownerId will be set when the register tool discovers it
-  // For now, try to get it from the Hub via agent list (owner auth returns ownerId)
+  // Resolve ownerId from API key via whoami endpoint
   try {
-    await client.health();
-    console.error(`[agentmesh-mcp] Hub reachable at ${hubUrl}`);
+    const owner = await client.whoami();
+    state.ownerId = owner.ownerId;
+    console.error(`[agentmesh-mcp] Hub reachable at ${hubUrl}, owner: ${owner.ownerId} (${owner.name})`);
   } catch (err) {
     console.error(`[agentmesh-mcp] Warning: Hub not reachable at ${hubUrl}:`, err);
   }
