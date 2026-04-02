@@ -10,3 +10,4 @@ references/
 *.db-shm
 *.db-wal
 .DS_Store
+.mcp.json
