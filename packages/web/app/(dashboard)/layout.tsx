@@ -6,6 +6,7 @@ import { getMyAgents } from "@/lib/hub-client";
 
 const NAV_ITEMS = [
   { href: "/", icon: "D", label: "Dashboard" },
+  { href: "/inbox", icon: "✉", label: "Inbox" },
   { href: "/chat", icon: "C", label: "Chat" },
   { href: "/agents", icon: "A", label: "Agents" },
   { href: "/channels", icon: "#", label: "Channels" },

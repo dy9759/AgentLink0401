@@ -22,6 +22,7 @@ export const listAgents = (filter?: Record<string, string>) => {
   return hubFetch<{ agents: any[] }>(`/agents${params.toString() ? `?${params}` : ""}`);
 };
 export const getAgent = (id: string) => hubFetch<any>(`/agents/${id}`);
+export const getMyAgents = () => hubFetch<{ agents: any[] }>("/agents/mine");
 
 // Messages
 export const sendInteraction = (body: any) => hubFetch<any>("/interactions", { method: "POST", body: JSON.stringify(body) });
@@ -77,8 +78,7 @@ export const getOwnerInbox = (params?: Record<string, string>) => {
   return hubFetch<{ interactions: any[] }>(`/interactions${qs}`);
 };
 
-// My agents (owner's agents)
-export const getMyAgents = () => hubFetch<{ agents: any[] }>("/agents/mine");
+// Agent token (identity switching)
 export const getAgentToken = (agentId: string) => hubFetch<{ agentId: string; agentToken: string; expiresIn: number }>(`/agents/${agentId}/token`, { method: "POST" });
 
 // Auto-reply
