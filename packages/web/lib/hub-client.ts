@@ -77,6 +77,10 @@ export const getOwnerInbox = (params?: Record<string, string>) => {
   return hubFetch<{ interactions: any[] }>(`/interactions${qs}`);
 };
 
+// My agents (owner's agents)
+export const getMyAgents = () => hubFetch<{ agents: any[] }>("/agents/mine");
+export const getAgentToken = (agentId: string) => hubFetch<{ agentId: string; agentToken: string; expiresIn: number }>(`/agents/${agentId}/token`, { method: "POST" });
+
 // Files
 export const uploadFile = async (file: File) => {
   const formData = new FormData();

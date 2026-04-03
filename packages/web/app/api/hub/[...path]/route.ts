@@ -10,9 +10,14 @@ async function proxyToHub(request: NextRequest, path: string) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // Use agent token if switched to agent identity
+  const agentToken = cookieStore.get("agent_token")?.value;
+  const identity = cookieStore.get("identity")?.value;
+  const token = (identity === "agent" && agentToken) ? agentToken : apiKey;
+
   const url = `${hubUrl}/api/${path}`;
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey}`,
+    Authorization: `Bearer ${token}`,
   };
 
   // Forward content-type for non-GET
