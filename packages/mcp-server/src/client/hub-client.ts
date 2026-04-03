@@ -151,9 +151,12 @@ export class HubClient {
   ): Promise<T> {
     const url = `${this.hubUrl}${path}`;
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
       ...(opts.headers as Record<string, string>),
     };
+    // Only set Content-Type if there's a body
+    if (opts.body) {
+      headers["Content-Type"] = "application/json";
+    }
     if (this.token) {
       headers["Authorization"] = `Bearer ${this.token}`;
     }
@@ -296,9 +299,7 @@ export class HubClient {
   }
 
   async joinChannel(channelName: string): Promise<void> {
-    return this.fetch(`/api/channels/${channelName}/join`, {
-      method: "POST",
-    });
+    return this.fetch(`/api/channels/${channelName}/join`, { method: "POST" });
   }
 
   async getChannelMessages(
