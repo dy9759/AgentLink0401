@@ -11,3 +11,6 @@ references/
 *.db-wal
 .DS_Store
 .mcp.json
+
+packages/web/.next/
+packages/web/node_modules/
