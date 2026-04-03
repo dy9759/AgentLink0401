@@ -20,10 +20,19 @@ export default function LoginPage() {
         body: JSON.stringify({ hubUrl: hubUrl.replace(/\/$/, ""), apiKey }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error); return; }
+      if (!res.ok) {
+        if (res.status === 502) {
+          setError("Cannot connect to Hub server. Check if it's running and the URL is correct.");
+        } else if (res.status === 401) {
+          setError("Invalid API Key. Create a new one with: curl -X POST " + hubUrl + "/api/owners -H 'Content-Type: application/json' -d '{\"name\":\"your-name\"}'");
+        } else {
+          setError(data.error || "Login failed");
+        }
+        return;
+      }
       router.push("/");
     } catch (err: any) {
-      setError(err.message);
+      setError("Network error: " + (err.message || "Cannot reach server"));
     } finally {
       setLoading(false);
     }

@@ -13,10 +13,18 @@ export async function POST(req: NextRequest) {
     }
     const owner = await res.json();
 
+    const cookieOpts = {
+      httpOnly: true,
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+      sameSite: "strict" as const,
+      secure: process.env.NODE_ENV === "production",
+    };
+
     const response = NextResponse.json({ success: true, owner });
-    response.cookies.set("hub_url", hubUrl, { httpOnly: true, path: "/", maxAge: 60 * 60 * 24 * 30 });
-    response.cookies.set("api_key", apiKey, { httpOnly: true, path: "/", maxAge: 60 * 60 * 24 * 30 });
-    response.cookies.set("owner_id", owner.ownerId, { httpOnly: false, path: "/", maxAge: 60 * 60 * 24 * 30 });
+    response.cookies.set("hub_url", hubUrl, cookieOpts);
+    response.cookies.set("api_key", apiKey, cookieOpts);
+    response.cookies.set("owner_id", owner.ownerId, { ...cookieOpts, httpOnly: false });
     return response;
   } catch {
     return NextResponse.json({ error: "Cannot connect to Hub" }, { status: 502 });

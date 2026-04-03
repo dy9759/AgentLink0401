@@ -83,6 +83,10 @@ export const getOwnerInbox = (params?: Record<string, string>) => {
 // Agent token (identity switching)
 export const getAgentToken = (agentId: string) => hubFetch<{ agentId: string; agentToken: string; expiresIn: number }>(`/agents/${agentId}/token`, { method: "POST" });
 
+// Key rotation
+export const rotateApiKey = () => hubFetch<{ ownerId: string; apiKey: string }>("/owners/rotate-key", { method: "POST" });
+export const refreshAgentToken = (agentId: string) => hubFetch<{ agentId: string; agentToken: string; expiresIn: number }>(`/agents/${agentId}/refresh-token`, { method: "POST" });
+
 // Auto-reply
 export const getAutoReplyConfig = (agentId: string) => hubFetch<any>(`/agents/${agentId}/auto-reply`);
 export const updateAutoReplyConfig = (agentId: string, config: Record<string, unknown>) => hubFetch<any>(`/agents/${agentId}/auto-reply`, { method: "PATCH", body: JSON.stringify(config) });

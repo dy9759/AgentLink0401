@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({ success: true, identity: "owner" });
     res.cookies.delete("agent_id");
     res.cookies.delete("agent_token");
-    res.cookies.set("identity", "owner", { httpOnly: false, path: "/", maxAge: 60 * 60 * 24 * 30 });
+    res.cookies.set("identity", "owner", { httpOnly: false, path: "/", maxAge: 60 * 60 * 24 * 30, sameSite: "strict" as const, secure: process.env.NODE_ENV === "production" });
     return res;
   }
 
@@ -37,9 +37,10 @@ export async function POST(req: NextRequest) {
     const { agentId, agentToken } = await tokenRes.json();
 
     const res = NextResponse.json({ success: true, identity: "agent", agentId });
-    res.cookies.set("agent_id", agentId, { httpOnly: false, path: "/", maxAge: 3600 });
-    res.cookies.set("agent_token", agentToken, { httpOnly: true, path: "/", maxAge: 3600 });
-    res.cookies.set("identity", "agent", { httpOnly: false, path: "/", maxAge: 60 * 60 * 24 * 30 });
+    const sameSiteOpts = { sameSite: "strict" as const, secure: process.env.NODE_ENV === "production" };
+    res.cookies.set("agent_id", agentId, { httpOnly: false, path: "/", maxAge: 3600, ...sameSiteOpts });
+    res.cookies.set("agent_token", agentToken, { httpOnly: true, path: "/", maxAge: 3600, ...sameSiteOpts });
+    res.cookies.set("identity", "agent", { httpOnly: false, path: "/", maxAge: 60 * 60 * 24 * 30, ...sameSiteOpts });
     return res;
   }
 

@@ -528,6 +528,14 @@ export class HubClient {
     });
   }
 
+  async rotateApiKey(): Promise<{ ownerId: string; apiKey: string }> {
+    return this.fetch("/api/owners/rotate-key", { method: "POST" });
+  }
+
+  async refreshAgentToken(agentId: string): Promise<{ agentId: string; agentToken: string; expiresIn: number }> {
+    return this.fetch(`/api/agents/${agentId}/refresh-token`, { method: "POST" });
+  }
+
   async downloadFile(
     fileId: string,
     destPath: string,

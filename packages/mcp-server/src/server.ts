@@ -115,6 +115,18 @@ async function main() {
   // After agent registration, connect WebSocket for real-time notifications
   state.onRegistered = (agentId: string) => {
     client.connectWebSocket(agentId);
+
+    // Auto-refresh JWT every 50 minutes (before 1h expiry)
+    const refreshInterval = setInterval(async () => {
+      try {
+        const result = await client.refreshAgentToken(agentId);
+        client.setAgentToken(result.agentToken);
+        console.error(`[agentmesh-mcp] Token refreshed for ${agentId}`);
+      } catch (err) {
+        console.error(`[agentmesh-mcp] Token refresh failed:`, err);
+      }
+    }, 50 * 60 * 1000); // 50 minutes
+
     client.onInteraction((interaction) => {
       const fromId = interaction.fromId ?? interaction.fromAgent;
       const preview = interaction.payload.text?.slice(0, 100) || (interaction.payload.file ? `[File: ${interaction.payload.file.fileName}]` : "[message]");
