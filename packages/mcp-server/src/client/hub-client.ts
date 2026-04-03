@@ -462,6 +462,37 @@ export class HubClient {
     }>;
   }
 
+  // Teams
+  async createTeam(request: { name: string; description?: string; members?: Array<{ id: string; type: string }> }): Promise<any> {
+    return this.fetch("/api/teams", { method: "POST", body: JSON.stringify(request) });
+  }
+  async getTeam(teamId: string): Promise<any> {
+    return this.fetch(`/api/teams/${teamId}`);
+  }
+  async listTeams(): Promise<any> {
+    return this.fetch("/api/teams");
+  }
+  async addTeamMember(teamId: string, memberId: string, memberType: string): Promise<any> {
+    return this.fetch(`/api/teams/${teamId}/members`, { method: "POST", body: JSON.stringify({ memberId, memberType }) });
+  }
+  async teamBroadcast(teamId: string, text: string): Promise<any> {
+    return this.fetch(`/api/teams/${teamId}/broadcast`, { method: "POST", body: JSON.stringify({ text }) });
+  }
+
+  // Remote Sessions
+  async createRemoteSession(agentId: string, title?: string): Promise<any> {
+    return this.fetch("/api/remote-sessions", { method: "POST", body: JSON.stringify({ agentId, title }) });
+  }
+  async getRemoteSession(id: string): Promise<any> {
+    return this.fetch(`/api/remote-sessions/${id}`);
+  }
+  async updateRemoteSessionStatus(id: string, status: string): Promise<any> {
+    return this.fetch(`/api/remote-sessions/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+  }
+  async listRemoteSessions(): Promise<any> {
+    return this.fetch("/api/remote-sessions");
+  }
+
   async downloadFile(
     fileId: string,
     destPath: string,

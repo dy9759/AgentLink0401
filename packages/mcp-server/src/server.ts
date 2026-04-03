@@ -22,6 +22,8 @@ import { registerMultiTurnChatTool } from "./tools/multi-turn-chat.js";
 import { registerShareContextTool } from "./tools/share-context.js";
 import { registerInviteToSessionTool } from "./tools/invite-to-session.js";
 import { registerSubmitPlanTool } from "./tools/submit-plan.js";
+import { registerTeamTools } from "./tools/team.js";
+import { registerRemoteSessionTools } from "./tools/remote-session.js";
 import { sendDesktopNotification } from "./notify.js";
 
 export interface McpServerConfig {
@@ -71,6 +73,8 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
   registerShareContextTool(server, client);
   registerInviteToSessionTool(server, client, state);
   registerSubmitPlanTool(server, client, state);
+  registerTeamTools(server, client, state);
+  registerRemoteSessionTools(server, client, state);
 
   return { server, client, state };
 }
