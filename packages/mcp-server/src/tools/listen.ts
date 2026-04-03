@@ -145,8 +145,9 @@ export function registerListenTool(
                 history = (hResult as any).interactions ?? [];
                 contextLabel = `Channel #${msgChannel}`;
               } else {
-                // DM history
-                const hResult = await client.getChatHistory(agentId, fromId, { limit: 20 });
+                // DM history — detect if peer is owner or agent
+                const idType = fromId.startsWith("owner-") ? "ownerId" as const : "agentId" as const;
+                const hResult = await client.getChatHistory(agentId, fromId, { limit: 20 }, idType);
                 history = (hResult as any).messages ?? [];
                 contextLabel = `DM with ${fromId}`;
               }
@@ -164,13 +165,13 @@ export function registerListenTool(
             let replyInstruction: string;
             if (msgSessionId) {
               replyInstruction =
-                `To reply, use: agentmesh_multi_turn_chat({ targetAgentId: "${fromId}", message: "your reply", sessionId: "${msgSessionId}" })\n` +
-                `Or: agentmesh_send_message({ toAgentId: "${fromId}", text: "your reply" })`;
+                `To reply, use: agentmesh_multi_turn_chat({ targetAgentId: "${fromId}", message: "your reply", sessionId: "${msgSessionId}" })`;
             } else if (msgChannel) {
               replyInstruction = `To reply, use: agentmesh_send_to_channel({ channelName: "${msgChannel}", text: "your reply" })`;
+            } else if (fromId.startsWith("owner-")) {
+              replyInstruction = `To reply, use: agentmesh_owner_send({ toOwnerId: "${fromId}", text: "your reply" })`;
             } else {
-              const targetKey = fromId.startsWith("owner-") ? "toOwnerId" : "toAgentId";
-              replyInstruction = `To reply, use: agentmesh_send_message({ ${targetKey}: "${fromId}", text: "your reply" })`;
+              replyInstruction = `To reply, use: agentmesh_send_message({ toAgentId: "${fromId}", text: "your reply" })`;
             }
 
             return {
