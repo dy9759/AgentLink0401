@@ -26,6 +26,7 @@ import { registerTeamTools } from "./tools/team.js";
 import { registerRemoteSessionTools } from "./tools/remote-session.js";
 import { registerAutoReplyTools } from "./tools/auto-reply-config.js";
 import { registerListenTool } from "./tools/listen.js";
+import { registerAgentProfileTools } from "./tools/agent-profile.js";
 import { sendDesktopNotification } from "./notify.js";
 
 export interface McpServerConfig {
@@ -80,6 +81,7 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
   registerRemoteSessionTools(server, client, state);
   registerAutoReplyTools(server, client, state);
   registerListenTool(server, client, state);
+  registerAgentProfileTools(server, client, state);
 
   return { server, client, state };
 }

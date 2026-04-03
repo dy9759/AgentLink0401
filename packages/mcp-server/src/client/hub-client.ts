@@ -516,6 +516,18 @@ export class HubClient {
     return this.fetch(`/api/channels/${channelName}/members`);
   }
 
+  // Agent Profile
+  async getAgentProfile(agentId: string): Promise<any> {
+    return this.fetch(`/api/agents/${agentId}/profile`);
+  }
+
+  async updateAgentProfile(agentId: string, profile: Record<string, unknown>): Promise<any> {
+    return this.fetch(`/api/agents/${agentId}/profile`, {
+      method: "PATCH",
+      body: JSON.stringify(profile),
+    });
+  }
+
   async downloadFile(
     fileId: string,
     destPath: string,

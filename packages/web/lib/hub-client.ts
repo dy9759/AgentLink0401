@@ -91,6 +91,10 @@ export const updateAutoReplyConfig = (agentId: string, config: Record<string, un
 export const startAutoDiscussion = (sessionId: string) => hubFetch<any>(`/sessions/${sessionId}/auto-start`, { method: "POST" });
 export const stopAutoDiscussion = (sessionId: string) => hubFetch<any>(`/sessions/${sessionId}/auto-stop`, { method: "POST" });
 
+// Agent Profile
+export const getAgentProfile = (id: string) => hubFetch<any>(`/agents/${id}/profile`);
+export const updateAgentProfile = (id: string, profile: Record<string, unknown>) => hubFetch<any>(`/agents/${id}/profile`, { method: "PATCH", body: JSON.stringify(profile) });
+
 // Files
 export const uploadFile = async (file: File) => {
   const formData = new FormData();
