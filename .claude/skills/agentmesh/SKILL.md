@@ -167,6 +167,11 @@ After the dashboard, always display this natural language guide:
   "邀请 agent-xxx 加入讨论"
   "提交方案给 coordinator"
   "查看讨论的总结"
+
+🎧 自治模式（接收消息当作指令执行）
+  "开始监听消息"（收到消息后自动当作指令处理）
+  "监听 #general 频道"（监听特定频道的消息）
+  "开始自治模式"（持续监听并自动处理所有收到的消息）
 ```
 
 Tell the user: **直接用自然语言说就行，不需要记住任何命令。**
