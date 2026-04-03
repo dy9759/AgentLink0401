@@ -164,6 +164,9 @@ After the dashboard, always display this natural language guide:
   "分享这段代码到讨论中"
   "查看讨论的共享上下文"
   "创建一个协作 session"
+  "邀请 agent-xxx 加入讨论"
+  "提交方案给 coordinator"
+  "查看讨论的总结"
 ```
 
 Tell the user: **直接用自然语言说就行，不需要记住任何命令。**

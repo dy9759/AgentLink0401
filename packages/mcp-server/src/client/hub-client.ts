@@ -389,6 +389,21 @@ export class HubClient {
     return this.fetch(`/api/sessions${qs ? `?${qs}` : ""}`);
   }
 
+  // Session summary
+  async getSessionSummary(sessionId: string): Promise<any> {
+    return this.fetch(`/api/sessions/${sessionId}/summary`);
+  }
+
+  async sendSessionInvite(sessionId: string, targetId: string, targetType: "agent" | "owner"): Promise<any> {
+    return this.sendInteraction({
+      type: "session_invite" as any,
+      contentType: "text",
+      target: targetType === "agent" ? { agentId: targetId } : { ownerId: targetId },
+      payload: { data: { sessionId } },
+      metadata: { expectReply: true },
+    });
+  }
+
   // Health
   // Owner whoami
   async whoami(): Promise<{ ownerId: string; name: string }> {

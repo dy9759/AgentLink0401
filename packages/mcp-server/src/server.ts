@@ -20,6 +20,8 @@ import { registerCreateSessionTool } from "./tools/create-session.js";
 import { registerSessionStatusTool } from "./tools/session-status.js";
 import { registerMultiTurnChatTool } from "./tools/multi-turn-chat.js";
 import { registerShareContextTool } from "./tools/share-context.js";
+import { registerInviteToSessionTool } from "./tools/invite-to-session.js";
+import { registerSubmitPlanTool } from "./tools/submit-plan.js";
 import { sendDesktopNotification } from "./notify.js";
 
 export interface McpServerConfig {
@@ -67,6 +69,8 @@ export function createMcpServer(config: McpServerConfig): { server: McpServer; c
   registerSessionStatusTool(server, client);
   registerMultiTurnChatTool(server, client, state);
   registerShareContextTool(server, client);
+  registerInviteToSessionTool(server, client, state);
+  registerSubmitPlanTool(server, client, state);
 
   return { server, client, state };
 }
