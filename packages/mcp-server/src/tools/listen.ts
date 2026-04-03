@@ -129,8 +129,9 @@ export function registerListenTool(
 
             try {
               if (msgSessionId) {
-                const hResult = await client.getSessionMessages(msgSessionId, { limit: 20 });
-                history = (hResult as any).messages ?? [];
+                const hResult = await client.getSessionMessages(msgSessionId, { limit: 30 });
+                const allMsgs = (hResult as any).messages ?? [];
+                history = allMsgs.slice(-20); // Take last 20
                 contextLabel = `Session ${msgSessionId}`;
 
                 // Also get session context if available
@@ -141,14 +142,17 @@ export function registerListenTool(
                   }
                 } catch {}
               } else if (msgChannel) {
-                const hResult = await client.getChannelMessages(msgChannel, { limit: 20 });
-                history = (hResult as any).interactions ?? [];
+                // Get recent channel messages (fetch more, then take last 20)
+                const hResult = await client.getChannelMessages(msgChannel, { limit: 50 });
+                const allMsgs = (hResult as any).interactions ?? [];
+                history = allMsgs.slice(-20); // Take last 20 for context
                 contextLabel = `Channel #${msgChannel}`;
               } else {
                 // DM history — detect if peer is owner or agent
                 const idType = fromId.startsWith("owner-") ? "ownerId" as const : "agentId" as const;
-                const hResult = await client.getChatHistory(agentId, fromId, { limit: 20 }, idType);
-                history = (hResult as any).messages ?? [];
+                const hResult = await client.getChatHistory(agentId, fromId, { limit: 30 }, idType);
+                const allMsgs = (hResult as any).messages ?? [];
+                history = allMsgs.slice(-20); // Take last 20
                 contextLabel = `DM with ${fromId}`;
               }
             } catch { /* history fetch failed, proceed without */ }
