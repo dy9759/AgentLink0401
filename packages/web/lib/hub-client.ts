@@ -48,6 +48,8 @@ export const getChannelMessages = (name: string, params?: Record<string, string>
 export const createChannel = (body: any) => hubFetch<any>("/channels", { method: "POST", body: JSON.stringify(body) });
 export const joinChannel = (name: string) => hubFetch<void>(`/channels/${name}/join`, { method: "POST" });
 
+export const getChannelMembers = (name: string) => hubFetch<{ members: any[] }>(`/channels/${name}/members`);
+
 // Tasks
 export const listTasks = (params?: Record<string, string>) => {
   const qs = params ? `?${new URLSearchParams(params)}` : "";

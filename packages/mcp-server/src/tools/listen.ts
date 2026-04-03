@@ -67,6 +67,15 @@ export function registerListenTool(
       const startTime = Date.now();
       const pollInterval = 2000;
 
+      // Fetch agent info for mention detection (do once before poll loop)
+      let myName = agentId;
+      let myCaps: string[] = [];
+      try {
+        const agentInfo = await client.getAgent(agentId);
+        myName = agentInfo.name ?? agentId;
+        myCaps = agentInfo.state?.capabilities ?? [];
+      } catch {}
+
       // Determine the state key for tracking last processed message
       const stateKey = sessionId ? `session:${sessionId}` : channelName ? `channel:${channelName}` : "dm";
       let lastId = state.lastProcessedId![stateKey];
@@ -116,12 +125,38 @@ export function registerListenTool(
           // Filter out own messages
           const incoming = newMessages.filter(m => (m.fromId ?? m.fromAgent) !== agentId);
 
-          if (incoming.length > 0) {
-            const msg = incoming[incoming.length - 1]; // latest incoming
+          for (const msg of incoming) {
             const fromId = msg.fromId ?? msg.fromAgent;
             const text = msg.payload?.text ?? "";
             const msgSessionId = msg.target?.sessionId ?? sessionId;
             const msgChannel = msg.target?.channel ?? channelName;
+            const isDM = !msgChannel && !msgSessionId;
+            const isSession = !!msgSessionId;
+
+            // @mention detection for channel messages
+            let responseLevel: "forced" | "suggested" | "ignore" = "ignore";
+            if (isDM || isSession) {
+              responseLevel = "forced";
+            } else if (msgChannel) {
+              const lower = text.toLowerCase();
+              if (lower.includes(`@${myName.toLowerCase()}`) || lower.includes(`@${agentId.toLowerCase()}`)) {
+                responseLevel = "forced";
+              } else {
+                for (const cap of myCaps) {
+                  if (cap && lower.includes(cap.toLowerCase())) {
+                    responseLevel = "suggested";
+                    break;
+                  }
+                }
+              }
+            }
+
+            // Skip non-relevant channel messages
+            if (responseLevel === "ignore") continue;
+
+            const levelLabel = responseLevel === "forced"
+              ? (isDM ? "DM: Direct message -- must respond" : isSession ? "SESSION: You are a participant -- must respond" : "MENTIONED: You were @mentioned -- must respond")
+              : "SUGGESTED: Message matches your capabilities -- consider responding";
 
             // ── Fetch full conversation history for context ──
             let history: Interaction[] = [];
@@ -205,6 +240,7 @@ export function registerListenTool(
 
                   // ── Instructions for Claude ──
                   instructions:
+                    `=== ${levelLabel} ===\n` +
                     `=== INCOMING MESSAGE ===\n` +
                     `From: ${fromId}\n` +
                     `Context: ${contextLabel}\n` +

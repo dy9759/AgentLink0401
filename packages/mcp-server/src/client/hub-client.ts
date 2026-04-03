@@ -512,6 +512,10 @@ export class HubClient {
     return this.fetch(`/api/sessions/${sessionId}/auto-stop`, { method: "POST" });
   }
 
+  async getChannelMembers(channelName: string): Promise<{ members: Array<{ agentId: string; name: string; type: string; capabilities: string[]; status: string; joinedAt: string }> }> {
+    return this.fetch(`/api/channels/${channelName}/members`);
+  }
+
   async downloadFile(
     fileId: string,
     destPath: string,
