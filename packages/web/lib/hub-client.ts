@@ -81,6 +81,14 @@ export const getOwnerInbox = (params?: Record<string, string>) => {
 export const getMyAgents = () => hubFetch<{ agents: any[] }>("/agents/mine");
 export const getAgentToken = (agentId: string) => hubFetch<{ agentId: string; agentToken: string; expiresIn: number }>(`/agents/${agentId}/token`, { method: "POST" });
 
+// Auto-reply
+export const getAutoReplyConfig = (agentId: string) => hubFetch<any>(`/agents/${agentId}/auto-reply`);
+export const updateAutoReplyConfig = (agentId: string, config: Record<string, unknown>) => hubFetch<any>(`/agents/${agentId}/auto-reply`, { method: "PATCH", body: JSON.stringify(config) });
+
+// Session auto-discussion
+export const startAutoDiscussion = (sessionId: string) => hubFetch<any>(`/sessions/${sessionId}/auto-start`, { method: "POST" });
+export const stopAutoDiscussion = (sessionId: string) => hubFetch<any>(`/sessions/${sessionId}/auto-stop`, { method: "POST" });
+
 // Files
 export const uploadFile = async (file: File) => {
   const formData = new FormData();

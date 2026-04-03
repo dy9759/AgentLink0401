@@ -493,6 +493,24 @@ export class HubClient {
     return this.fetch("/api/remote-sessions");
   }
 
+  // Auto-reply config
+  async getAutoReplyConfig(agentId: string): Promise<any> {
+    return this.fetch(`/api/agents/${agentId}/auto-reply`);
+  }
+
+  async updateAutoReplyConfig(agentId: string, config: Record<string, unknown>): Promise<any> {
+    return this.fetch(`/api/agents/${agentId}/auto-reply`, { method: "PATCH", body: JSON.stringify(config) });
+  }
+
+  // Session auto-discussion
+  async startAutoDiscussion(sessionId: string): Promise<any> {
+    return this.fetch(`/api/sessions/${sessionId}/auto-start`, { method: "POST" });
+  }
+
+  async stopAutoDiscussion(sessionId: string): Promise<any> {
+    return this.fetch(`/api/sessions/${sessionId}/auto-stop`, { method: "POST" });
+  }
+
   async downloadFile(
     fileId: string,
     destPath: string,

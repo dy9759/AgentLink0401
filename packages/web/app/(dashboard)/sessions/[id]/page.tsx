@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { getSession, getSessionMessages, getSessionSummary, sendInteraction } from "@/lib/hub-client";
+import { getSession, getSessionMessages, getSessionSummary, sendInteraction, startAutoDiscussion, stopAutoDiscussion } from "@/lib/hub-client";
 import { use } from "react";
 
 export default function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +11,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [showContext, setShowContext] = useState(false);
+  const [autoRunning, setAutoRunning] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   function loadData() {
@@ -50,6 +51,22 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     } catch {} finally { setSending(false); }
   }
 
+  async function handleAutoStart() {
+    try {
+      await startAutoDiscussion(id);
+      setAutoRunning(true);
+    } catch (err: any) {
+      alert(err.message || "Failed to start auto-discussion");
+    }
+  }
+
+  async function handleAutoStop() {
+    try {
+      await stopAutoDiscussion(id);
+      setAutoRunning(false);
+    } catch {}
+  }
+
   const isCompleted = session?.status === "completed" || session?.status === "failed" || session?.status === "archived";
 
   return (
@@ -66,9 +83,22 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             <span>{session?.participants?.length ?? 0} participants</span>
           </div>
         </div>
-        <button onClick={() => setShowContext(!showContext)} className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] border border-[var(--border)] rounded hover:border-[var(--accent)]">
-          {showContext ? "Hide Context" : "Show Context"}
-        </button>
+        <div className="flex gap-2">
+          {!isCompleted && (
+            autoRunning ? (
+              <button onClick={handleAutoStop} className="px-3 py-1.5 text-sm bg-[var(--error)]/20 text-[var(--error)] border border-[var(--error)]/30 rounded hover:bg-[var(--error)]/30">
+                ⏹ Stop Auto
+              </button>
+            ) : (
+              <button onClick={handleAutoStart} className="px-3 py-1.5 text-sm bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/30 rounded hover:bg-[var(--success)]/30">
+                ▶ Auto Discussion
+              </button>
+            )
+          )}
+          <button onClick={() => setShowContext(!showContext)} className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] border border-[var(--border)] rounded hover:border-[var(--accent)]">
+            {showContext ? "Hide Context" : "Show Context"}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
