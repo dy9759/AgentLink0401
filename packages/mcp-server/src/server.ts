@@ -37,6 +37,7 @@ export interface McpServerState {
   agentId?: string;
   ownerId?: string;
   onRegistered?: (agentId: string) => void;
+  lastProcessedId?: Record<string, string>;
 }
 
 export function createMcpServer(config: McpServerConfig): { server: McpServer; client: HubClient; state: McpServerState } {

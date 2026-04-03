@@ -3,31 +3,39 @@ import type { HubClient } from "../client/hub-client.js";
 import type { Interaction } from "@agentmesh/shared";
 
 /**
- * agentmesh_listen — Blocking listen tool.
+ * agentmesh_listen — Autonomous agent mode.
  *
- * Waits for incoming messages and returns them as "instructions" for Claude.
- * Claude processes the message (read files, write code, analyze, etc.)
- * then sends a reply and calls listen() again → autonomous agent loop.
- *
- * Usage in Claude Code:
- *   User: "开始监听消息，收到消息后当作指令执行"
- *   Claude: 调用 agentmesh_listen() → 等待 → 收到消息 → 处理 → 回复 → 再次 listen
+ * 1. Auto-listen to all conversations (DM, channel, session) the agent is in
+ * 2. On new message: fetch full history → pass to Claude as context
+ * 3. Claude reads history, identifies intent, executes tasks (read files, write code, etc.)
+ * 4. Claude replies in the same conversation with results
+ * 5. Call listen() again → continuous autonomous loop
  */
 export function registerListenTool(
   server: import("@modelcontextprotocol/sdk/server/mcp.js").McpServer,
   client: HubClient,
-  state: { agentId?: string; ownerId?: string },
+  state: { agentId?: string; ownerId?: string; lastProcessedId?: Record<string, string> },
 ) {
+  if (!state.lastProcessedId) {
+    state.lastProcessedId = {};
+  }
+
   server.registerTool(
     "agentmesh_listen",
     {
       description:
-        "Wait for incoming messages from other agents or owners. " +
-        "Blocks until a new message arrives or timeout is reached. " +
-        "Treat the returned message as a user instruction — read files, write code, " +
-        "analyze problems, then reply using agentmesh_send_message. " +
-        "Call agentmesh_listen again to continue listening. " +
-        "This creates an autonomous agent loop.",
+        "Autonomous agent mode — listen for incoming messages across all conversations.\n\n" +
+        "When a message arrives, this tool returns:\n" +
+        "- The new message\n" +
+        "- Full conversation history (last 20 messages for context)\n" +
+        "- Conversation metadata (who, where, session info)\n\n" +
+        "Your job as Claude:\n" +
+        "1. Read the history and new message to understand context\n" +
+        "2. Identify the intent (question, task request, discussion, etc.)\n" +
+        "3. Execute any needed actions (Read files, Write code, Bash commands, etc.)\n" +
+        "4. Reply in the same conversation using the suggested reply tool\n" +
+        "5. Call agentmesh_listen() again to keep listening\n\n" +
+        "This creates an autonomous agent loop where you continuously receive and handle messages.",
       inputSchema: {
         timeoutMs: z
           .number()
@@ -35,150 +43,196 @@ export function registerListenTool(
           .min(5000)
           .max(300000)
           .optional()
-          .describe("How long to wait for a message (default 60000ms, max 300000ms)"),
+          .describe("How long to wait for a message (default 60s, max 300s)"),
         channelName: z
           .string()
           .optional()
-          .describe("Listen to a specific channel instead of DMs"),
+          .describe("Listen to a specific channel. If omitted, listens to all DMs."),
+        sessionId: z
+          .string()
+          .optional()
+          .describe("Listen to a specific session. If omitted, listens to all."),
       },
     },
-    async ({ timeoutMs, channelName }) => {
+    async ({ timeoutMs, channelName, sessionId }) => {
       const agentId = state.agentId;
       if (!agentId) {
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: "Not registered. Call agentmesh_register first." }),
-            },
-          ],
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Not registered. Call agentmesh_register first." }) }],
           isError: true,
         };
       }
 
       const timeout = timeoutMs ?? 60000;
       const startTime = Date.now();
-      const pollInterval = 2000; // Check every 2 seconds
-      let lastId: string | undefined;
+      const pollInterval = 2000;
 
-      // Get current latest message ID as baseline (don't process old messages)
-      try {
-        const current = await client.pollInteractions(agentId, { limit: 1 });
-        const msgs = current.interactions ?? [];
-        if (msgs.length > 0) {
-          lastId = msgs[msgs.length - 1].id;
-        }
-      } catch {
-        // No existing messages — start from beginning
+      // Determine the state key for tracking last processed message
+      const stateKey = sessionId ? `session:${sessionId}` : channelName ? `channel:${channelName}` : "dm";
+      let lastId = state.lastProcessedId![stateKey];
+
+      // If no baseline, get current latest to avoid processing old messages
+      if (!lastId) {
+        try {
+          if (sessionId) {
+            const result = await client.getSessionMessages(sessionId, { limit: 1 });
+            const msgs = (result as any).messages ?? [];
+            if (msgs.length > 0) lastId = msgs[msgs.length - 1].id;
+          } else if (channelName) {
+            const result = await client.getChannelMessages(channelName, { limit: 1 });
+            const msgs = (result as any).interactions ?? [];
+            if (msgs.length > 0) lastId = msgs[msgs.length - 1].id;
+          } else {
+            const result = await client.pollInteractions(agentId, { limit: 1 });
+            const msgs = result.interactions ?? [];
+            if (msgs.length > 0) lastId = msgs[msgs.length - 1].id;
+          }
+        } catch { /* start from beginning */ }
       }
 
-      // Poll loop — wait for new messages
+      // Poll loop
       while (Date.now() - startTime < timeout) {
         await sleep(pollInterval);
 
         try {
           let newMessages: Interaction[] = [];
 
-          if (channelName) {
-            // Listen to channel
-            const result = await client.getChannelMessages(channelName, {
-              afterId: lastId,
-              limit: 10,
-            });
+          if (sessionId) {
+            const result = await client.getSessionMessages(sessionId, { afterId: lastId, limit: 10 });
+            newMessages = (result as any).messages ?? [];
+          } else if (channelName) {
+            const result = await client.getChannelMessages(channelName, { afterId: lastId, limit: 10 });
             newMessages = (result as any).interactions ?? [];
           } else {
-            // Listen to DMs
-            const result = await client.pollInteractions(agentId, {
-              afterId: lastId,
-              limit: 10,
-            });
+            const result = await client.pollInteractions(agentId, { afterId: lastId, limit: 10 });
             newMessages = result.interactions ?? [];
           }
 
+          if (newMessages.length > 0) {
+            lastId = newMessages[newMessages.length - 1].id;
+            state.lastProcessedId![stateKey] = lastId;
+          }
+
           // Filter out own messages
-          const incoming = newMessages.filter(
-            (m) => (m.fromId ?? m.fromAgent) !== agentId,
-          );
+          const incoming = newMessages.filter(m => (m.fromId ?? m.fromAgent) !== agentId);
 
           if (incoming.length > 0) {
-            // Update lastId
-            const latest = newMessages[newMessages.length - 1];
-            lastId = latest.id;
-
-            // Return the first incoming message as an "instruction"
-            const msg = incoming[0];
+            const msg = incoming[incoming.length - 1]; // latest incoming
             const fromId = msg.fromId ?? msg.fromAgent;
             const text = msg.payload?.text ?? "";
-            const sessionId = msg.target?.sessionId;
-            const channel = msg.target?.channel ?? channelName;
-            const hasFile = !!msg.payload?.file || !!msg.payload?.data?.fileId;
+            const msgSessionId = msg.target?.sessionId ?? sessionId;
+            const msgChannel = msg.target?.channel ?? channelName;
+
+            // ── Fetch full conversation history for context ──
+            let history: Interaction[] = [];
+            let contextLabel = "";
+
+            try {
+              if (msgSessionId) {
+                const hResult = await client.getSessionMessages(msgSessionId, { limit: 20 });
+                history = (hResult as any).messages ?? [];
+                contextLabel = `Session ${msgSessionId}`;
+
+                // Also get session context if available
+                try {
+                  const session = await client.getSession(msgSessionId);
+                  if (session?.context?.topic) {
+                    contextLabel += ` (Topic: ${session.context.topic})`;
+                  }
+                } catch {}
+              } else if (msgChannel) {
+                const hResult = await client.getChannelMessages(msgChannel, { limit: 20 });
+                history = (hResult as any).interactions ?? [];
+                contextLabel = `Channel #${msgChannel}`;
+              } else {
+                // DM history
+                const hResult = await client.getChatHistory(agentId, fromId, { limit: 20 });
+                history = (hResult as any).messages ?? [];
+                contextLabel = `DM with ${fromId}`;
+              }
+            } catch { /* history fetch failed, proceed without */ }
+
+            // ── Format history as readable context ──
+            const historyText = history.map((h, i) => {
+              const sender = (h.fromId ?? h.fromAgent) === agentId ? "You" : (h.fromId ?? h.fromAgent ?? "unknown");
+              const content = h.payload?.text ?? JSON.stringify(h.payload?.data ?? {});
+              const time = h.createdAt ? new Date(h.createdAt).toLocaleTimeString() : "";
+              return `[${time}] ${sender}: ${content}`;
+            }).join("\n");
+
+            // ── Build reply instruction ──
+            let replyInstruction: string;
+            if (msgSessionId) {
+              replyInstruction =
+                `To reply, use: agentmesh_multi_turn_chat({ targetAgentId: "${fromId}", message: "your reply", sessionId: "${msgSessionId}" })\n` +
+                `Or: agentmesh_send_message({ toAgentId: "${fromId}", text: "your reply" })`;
+            } else if (msgChannel) {
+              replyInstruction = `To reply, use: agentmesh_send_to_channel({ channelName: "${msgChannel}", text: "your reply" })`;
+            } else {
+              const targetKey = fromId.startsWith("owner-") ? "toOwnerId" : "toAgentId";
+              replyInstruction = `To reply, use: agentmesh_send_message({ ${targetKey}: "${fromId}", text: "your reply" })`;
+            }
 
             return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      type: "incoming_message",
-                      from: fromId,
-                      fromType: msg.fromType ?? "agent",
-                      message: text,
-                      interactionId: msg.id,
-                      sessionId: sessionId ?? null,
-                      channel: channel ?? null,
-                      hasFile,
-                      fileInfo: msg.payload?.data?.fileId
-                        ? {
-                            fileId: msg.payload.data.fileId,
-                            fileName: msg.payload.data.fileName,
-                          }
-                        : null,
-                      metadata: msg.metadata ?? null,
-                      timestamp: msg.createdAt,
-                      instruction:
-                        `Message from ${fromId}: "${text}"\n\n` +
-                        `Treat this as a user instruction. Process it, then:\n` +
-                        `1. Perform the requested action (read files, write code, analyze, etc.)\n` +
-                        `2. Send your response using agentmesh_send_message({ toAgentId: "${fromId}", text: "your response" })` +
-                        (sessionId
-                          ? ` with sessionId target`
-                          : "") +
-                        (channel
-                          ? ` or agentmesh_send_to_channel({ channelName: "${channel}", text: "your response" })`
-                          : "") +
-                        `\n3. Call agentmesh_listen() again to continue listening.`,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  // ── New message ──
+                  newMessage: {
+                    from: fromId,
+                    fromType: msg.fromType ?? "agent",
+                    text,
+                    interactionId: msg.id,
+                    timestamp: msg.createdAt,
+                    hasFile: !!msg.payload?.file || !!msg.payload?.data?.fileId,
+                  },
+
+                  // ── Conversation context ──
+                  conversation: {
+                    type: msgSessionId ? "session" : msgChannel ? "channel" : "dm",
+                    id: msgSessionId ?? msgChannel ?? fromId,
+                    label: contextLabel,
+                    historyCount: history.length,
+                  },
+
+                  // ── Full history ──
+                  history: historyText || "(no prior messages)",
+
+                  // ── Instructions for Claude ──
+                  instructions:
+                    `=== INCOMING MESSAGE ===\n` +
+                    `From: ${fromId}\n` +
+                    `Context: ${contextLabel}\n` +
+                    `Message: "${text}"\n\n` +
+                    `=== CONVERSATION HISTORY (last ${history.length} messages) ===\n` +
+                    `${historyText || "(empty)"}\n\n` +
+                    `=== YOUR TASK ===\n` +
+                    `1. Read the history and new message carefully\n` +
+                    `2. Identify what is being asked or discussed\n` +
+                    `3. If it's a task (read files, fix code, analyze, etc.) — do it using your tools\n` +
+                    `4. Compose a helpful reply based on the full context\n` +
+                    `5. ${replyInstruction}\n` +
+                    `6. Call agentmesh_listen() again to continue listening`,
+                }, null, 2),
+              }],
             };
           }
-        } catch {
-          // Network error — continue polling
-        }
+        } catch { /* network error — continue */ }
       }
 
-      // Timeout — no messages received
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              type: "timeout",
-              message: `No new messages within ${timeout}ms`,
-              instruction:
-                "No messages received. Call agentmesh_listen() again to keep waiting, " +
-                "or do other work and come back later.",
-            }),
-          },
-        ],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            type: "timeout",
+            message: `No new messages in ${timeout / 1000}s. Call agentmesh_listen() again to keep waiting.`,
+          }),
+        }],
       };
     },
   );
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
